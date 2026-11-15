@@ -1,0 +1,3 @@
+---
+compose_app_dir: /opt/shopledger
+compose_app_port: 80

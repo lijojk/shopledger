@@ -1,0 +1,80 @@
+---
+- name: Add signing keys for the tool repositories
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/etc/apt/keyrings/{{ item.name }}.asc"
+    mode: "0644"
+  loop:
+    - name: hashicorp
+      url: https://apt.releases.hashicorp.com/gpg
+    - name: kubernetes
+      url: "https://pkgs.k8s.io/core:/stable:/{{ kubectl_minor }}/deb/Release.key"
+    - name: trivy
+      url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Add the tool repositories
+  ansible.builtin.apt_repository:
+    repo: "{{ item.repo }}"
+    filename: "{{ item.name }}"
+    state: present
+  loop:
+    - name: hashicorp
+      repo: >-
+        deb [arch=amd64 signed-by=/etc/apt/keyrings/hashicorp.asc]
+        https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main
+    - name: kubernetes
+      repo: >-
+        deb [signed-by=/etc/apt/keyrings/kubernetes.asc]
+        https://pkgs.k8s.io/core:/stable:/{{ kubectl_minor }}/deb/ /
+    - name: trivy
+      repo: >-
+        deb [signed-by=/etc/apt/keyrings/trivy.asc]
+        https://aquasecurity.github.io/trivy-repo/deb generic main
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Install command line tools
+  ansible.builtin.apt:
+    name:
+      - kubectl
+      - python3-venv
+      - shellcheck
+      - terraform
+      - trivy
+    state: present
+    update_cache: true
+
+- name: Hold Trivy so a scanner update is always a deliberate choice
+  ansible.builtin.dpkg_selections:
+    name: trivy
+    selection: hold
+
+- name: Download the Helm installer
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
+    dest: /usr/local/bin/get-helm-4.sh
+    mode: "0755"
+
+- name: Install Helm
+  ansible.builtin.command:
+    cmd: /usr/local/bin/get-helm-4.sh
+    creates: /usr/local/bin/helm
+
+- name: Check for the AWS CLI
+  ansible.builtin.stat:
+    path: /usr/local/bin/aws
+  register: devtools_aws_cli
+
+- name: Unpack the AWS CLI
+  ansible.builtin.unarchive:
+    src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp
+    remote_src: true
+  when: not devtools_aws_cli.stat.exists
+
+- name: Install the AWS CLI
+  ansible.builtin.command:
+    cmd: /tmp/aws/install
+    creates: /usr/local/bin/aws

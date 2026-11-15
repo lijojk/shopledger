@@ -1,0 +1,56 @@
+# Runs the same image locally, in CI and on the AWS server.
+name: shopledger
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://shopledger:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/shopledger
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shopledger
+      POSTGRES_USER: shopledger
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopledger -d shopledger"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: ${IMAGE:-shopledger:local}
+    command: ["python", "-m", "app.migrate"]
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ${IMAGE:-shopledger:local}
+    build:
+      context: .
+      target: runtime
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      <<: *app-env
+      APP_ENV: ${APP_ENV:-compose}
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:

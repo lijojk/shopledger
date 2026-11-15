@@ -1,0 +1,47 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shopledger-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: shopledger
+      rules:
+        - alert: ShopLedgerHighErrorRate
+          expr: |
+            sum by (namespace) (rate(http_requests_total{job="shopledger",status=~"5.."}[2m]))
+              /
+            sum by (namespace) (rate(http_requests_total{job="shopledger"}[2m]))
+              > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.namespace }}: {{ $value | humanizePercentage }} of requests are failing"
+            runbook: "Check the last deployment, then run: kubectl -n {{ $labels.namespace }} rollout undo deployment/shopledger"
+        - alert: ShopLedgerHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, le) (rate(http_request_duration_seconds_bucket{job="shopledger"}[5m]))
+            ) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.namespace }}: 95% of requests take under {{ $value | humanizeDuration }}, above the 0.5s target"
+        - alert: ShopLedgerNoPodsAvailable
+          expr: |
+            sum by (namespace) (kube_deployment_status_replicas_available{deployment="shopledger"}) == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.namespace }}: no ShopLedger pod can take traffic"
+        - alert: ShopLedgerPodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{container="shopledger"}[15m]) > 2
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted more than twice in 15 minutes"

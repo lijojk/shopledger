@@ -1,0 +1,63 @@
+---
+- name: Download the k3s installer
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+
+# Every VM has the same NAT address (10.0.2.15), so k3s must be told to use
+# the host-only network. Without these flags the nodes cannot reach each other.
+- name: Install the k3s server
+  ansible.builtin.command:
+    cmd: /usr/local/bin/k3s-install.sh
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+    INSTALL_K3S_EXEC: >-
+      server
+      --node-ip={{ ansible_host }}
+      --flannel-iface={{ lab_interface }}
+      --tls-san={{ ansible_host }}
+      --write-kubeconfig-mode=600
+
+- name: Wait for the Kubernetes API
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 6443
+    timeout: 180
+
+- name: Wait for the join token
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    timeout: 120
+
+- name: Read the join token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_server_token
+  no_log: true
+
+- name: Read the kubeconfig
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/k3s.yaml
+  register: k3s_server_kubeconfig
+  no_log: true
+
+- name: Create the kube folder on the control VM
+  ansible.builtin.file:
+    path: "/home/{{ lab_user }}/.kube"
+    state: directory
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0700"
+  delegate_to: "{{ groups['controller'][0] }}"
+
+- name: Copy the kubeconfig to the control VM
+  ansible.builtin.copy:
+    content: "{{ k3s_server_kubeconfig.content | b64decode | replace('127.0.0.1', ansible_host) }}"
+    dest: "/home/{{ lab_user }}/.kube/config"
+    owner: "{{ lab_user }}"
+    group: "{{ lab_user }}"
+    mode: "0600"
+  delegate_to: "{{ groups['controller'][0] }}"
+  no_log: true

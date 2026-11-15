@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: production
+resources:
+  - namespace.yaml
+  - pdb.yaml
+  - ../../base
+configMapGenerator:
+  - name: shopledger-config
+    literals:
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+images:
+  - name: shopledger
+    newName: replaced-by-deploy-script
+    newTag: replaced-by-deploy-script
+patches:
+  - target:
+      kind: Ingress
+      name: shopledger
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: shopledger.lab
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: shopledger
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4

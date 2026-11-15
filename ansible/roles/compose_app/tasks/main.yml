@@ -1,0 +1,37 @@
+---
+- name: Create the application folder
+  ansible.builtin.file:
+    path: "{{ compose_app_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Copy the Compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../docker-compose.yml"
+    dest: "{{ compose_app_dir }}/docker-compose.yml"
+    mode: "0640"
+
+- name: Write the environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ compose_app_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Start the application
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_app_dir }}"
+    pull: missing
+    build: never
+    state: present
+
+- name: Wait until the application answers
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ compose_app_port }}/healthz"
+    status_code: 200
+  register: compose_app_health
+  until: compose_app_health.status == 200
+  retries: 20
+  delay: 3

@@ -1,0 +1,10 @@
+# A node drain may never take the last healthy pod.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: shopledger
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: shopledger

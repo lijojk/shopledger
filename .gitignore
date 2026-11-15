@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+reports/
+
+# Database backups
+*.sql
+
+# Secrets never go in Git
+.env
+*.pem
+*.key
+kubeconfig*
+ansible/.vault_pass
+ansible/inventory/aws.ini
+
+# Terraform (commit .terraform.lock.hcl, not state)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+backend.hcl
+tfplan

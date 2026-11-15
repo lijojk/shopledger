@@ -1,0 +1,18 @@
+# Tells Prometheus to scrape every ShopLedger pod in both environments.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: shopledger
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - staging
+      - production
+  selector:
+    matchLabels:
+      app: shopledger
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

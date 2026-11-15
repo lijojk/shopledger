@@ -1,0 +1,6 @@
+[Unit]
+Description=Lab VM health check
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/vm-health.sh

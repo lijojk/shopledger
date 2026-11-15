@@ -1,0 +1,48 @@
+# Unit tests for the alert rules. Run with: promtool test rules monitoring/tests/alerts_test.yaml
+rule_files:
+  - /tmp/shopledger-rules.yaml
+evaluation_interval: 15s
+tests:
+  - name: high error rate fires after two minutes
+    interval: 15s
+    input_series:
+      - series: 'http_requests_total{job="shopledger",namespace="staging",status="500"}'
+        values: "0+30x40"
+      - series: 'http_requests_total{job="shopledger",namespace="staging",status="200"}'
+        values: "0+30x40"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: ShopLedgerHighErrorRate
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: ShopLedgerHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              namespace: staging
+            exp_annotations:
+              summary: "staging: 50% of requests are failing"
+              runbook: "Check the last deployment, then run: kubectl -n staging rollout undo deployment/shopledger"
+  - name: healthy traffic stays quiet
+    interval: 15s
+    input_series:
+      - series: 'http_requests_total{job="shopledger",namespace="production",status="200"}'
+        values: "0+60x40"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: ShopLedgerHighErrorRate
+        exp_alerts: []
+  - name: no pods available
+    interval: 15s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="production",deployment="shopledger"}'
+        values: "2x4 0x20"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ShopLedgerNoPodsAvailable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              namespace: production
+            exp_annotations:
+              summary: "production: no ShopLedger pod can take traffic"

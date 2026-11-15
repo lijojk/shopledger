@@ -1,0 +1,20 @@
+---
+- name: Deploy ShopLedger to the AWS server
+  hosts: aws_demo
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for SSH on the new server
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+
+    - name: Wait until first-boot setup has finished
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - docker
+    - compose_app

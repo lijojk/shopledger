@@ -1,0 +1,26 @@
+---
+- name: Apply the baseline to every VM
+  hosts: lab
+  become: true
+  roles:
+    - common
+
+- name: Build the control VM
+  hosts: controller
+  become: true
+  roles:
+    - docker
+    - devtools
+    - jenkins
+
+- name: Start the Kubernetes server
+  hosts: k3s_server
+  become: true
+  roles:
+    - k3s_server
+
+- name: Join the Kubernetes agents
+  hosts: k3s_agent
+  become: true
+  roles:
+    - k3s_agent

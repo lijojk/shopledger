@@ -1,0 +1,7 @@
+---
+lab_user: devops
+lab_network: 192.168.56.0/24
+lab_interface: enp0s8
+lab_timezone: Asia/Kolkata
+k3s_channel: v1.36
+kubectl_minor: v1.36
