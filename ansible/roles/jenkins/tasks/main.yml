@@ -43,6 +43,7 @@
     content: |
       [Service]
       Environment="JAVA_OPTS=-Djava.awt.headless=true -Xmx1024m"
+      TimeoutStartSec=300
     mode: "0644"
   notify: Restart jenkins
 
