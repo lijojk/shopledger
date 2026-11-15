@@ -39,3 +39,5 @@ Fill this in from your own runs. Every line here should be something you can sho
     cp .env.example .env
     docker compose up --build --detach --wait
     scripts/smoke-test.sh http://127.0.0.1:8000
+
+Built and maintained by Lijo.
